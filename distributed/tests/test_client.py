@@ -6199,3 +6199,30 @@ async def test_futures_in_subgraphs(c, s, a, b):
     ddf["local_time"] = ddf.enter_time.dt.tz_convert("US/Central")
     ddf["day"] = ddf.enter_time.dt.day_name()
     ddf = await c.submit(dd.categorical.categorize, ddf, columns=["day"], index=False)
+
+
+@gen_cluster(client=True)
+async def test_custom_key_with_batches(c, s, a, b):
+    """ Test of <https://github.com/dask/distributed/issues/4588>"""
+
+    futs = c.map(
+        lambda x: x ** 2,
+        list(range(10)),
+        batch_size=5,
+        key=[f"{x}" for x in list(range(10))],
+    )
+    assert len(futs) == 10
+    res = c.gather(futs)  # this is to ensure that the futures are computed
+    assert len(res) == 10
+
+    futs = c.map(lambda x: x ** 2, list(range(10)), batch_size=5)
+    assert len(futs) == 10
+    res = c.gather(futs)  # this is to ensure that the futures are computed
+    assert len(res) == 10
+
+    futs = c.map(
+        lambda x: x ** 2, list(range(10)), key=[f"{x}" for x in list(range(10))]
+    )
+    assert len(futs) == 10
+    res = c.gather(futs)  # this is to ensure that the futures are computed
+    assert len(res) == 10
